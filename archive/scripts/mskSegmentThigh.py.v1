@@ -1,0 +1,517 @@
+#!/aging1/software/anaconda/bin/python
+# !/usr/bin/env python
+"""
+    Segments thigh into 5 tissue components - subcutaneous fat (1), intramuscular fat(2), muscle (3), bone cortex (4), and bone marrow (5).
+
+    Required inputs:  --image A t1 or t2 weighted image for segmentation.
+                      --mask  A mask directing over what region in the image should the segmentation be performed.
+
+    Assumptions employeed :
+
+        1) Bone cortex may be approximated with a convex hull
+        2) Bone marroe may be approximated with a convex hull
+        3) Muscle boundary may be approximated with a convex hull
+        4) Segmentation is done on leg at time.  
+
+    Segmentation is done in stages.  First stage classifies the tissue contained in the mask to either muscle, fat, or other. N4 correction
+    is applied to the masked image before segmentation occurs. Second stage finds the convex hull of the muscle.  Thir 
+
+"""
+
+import sys      
+import os                                               # system functions
+import glob
+import shutil
+import distutils
+
+import argparse
+import subprocess
+import iwQa
+import iwUtilities
+
+def redcap():
+
+# record_id
+# redcap_event_name    
+# acrostic    
+# date_of_birth    
+# gender    
+# demographics_complete   
+# 
+# subfat_vol
+# mus_vol 
+# musfat_vol
+# femur_cortex_vol
+# femur_mar_vol 
+# convex_hull_measurements_complete    
+
+# subfat_vol_v2    
+# mus_vol_v2   
+# musfat_vol_v2    
+# femur_cortex_vol_v2    
+# femur_mar_vol_v2    
+# manual_measurements_complete
+
+     print "Not implemented yet"
+
+
+def probabilityVolume( probabilityMap ):
+
+     callCommand = ["fslstats", probabilityMap, "-M", "-V"]
+
+     fslstats  = subprocess.Popen(callCommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+     rawOutput = fslstats.communicate()[0]
+     output    = rawOutput.rstrip().split()
+
+     volume    = float(output[0]) * float(output[2])/ 1000.
+
+     return volume
+
+
+
+def stats( labelFile, probImfat, probMuscle ):
+
+     if not os.path.isfile(labelFile):
+          print "Label file %s does not exist"  % labelFile
+          quit()
+
+     labels   = ( ("Subcutaneous_fat", 1), 
+                  ( "Intramuscular_fat", 2),
+                  ( "Skeletal_muscle",   3),
+                  ( "Bone_cortex", 4),
+                  ( "Bone_marrow", 5))       
+
+#     print '\n\n{0:>25s}, {1:>8s}, {2:>10s}, {3:>15s}'.format("Label Name", "Number", "nVoxels", "Volume [cm^3]")
+
+     volume = [0, 0, 0, 0, 0, 0, 0];
+
+     for ii in labels:
+
+          iiMaskFileName = "mask." + ii[0] + "." + labelFile
+
+          callCommand = ["fslmaths", labelFile, "-thr", str(ii[1]), "-uthr", str(ii[1]), "-bin", iiMaskFileName ]
+          iwUtilities.iw_subprocess(callCommand)
+
+          callCommand = ["fslstats", labelFile, "-k", iiMaskFileName, "-V"]
+
+          fslstats  = subprocess.Popen(callCommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          rawOutput = fslstats.communicate()[0]
+          output    = rawOutput.rstrip().split()
+
+          volume[int(ii[1]-1)] = float(output[1])/1000.
+          
+#          print '{0:>25s}, {1:>8d}, {2:>10d}, {3:>15.8f}'.format(ii[0], ii[1], int(output[0]), float(output[1])/1000)
+
+          if not inArgs.debug:
+               os.remove(iiMaskFileName)
+
+     #
+     # Calculate volume from probability maps 
+     #
+
+     volume[5] = probabilityVolume( probImfat  )
+     volume[6] = probabilityVolume( probMuscle )
+     
+     print '{0:>10s}, {1:>10s}, {2:>10s}, {3:>10s},{4:>10s},{5:>12s},{6:>12s}'.format("SubFat", "ImFat","Muscle","Cortex", "Marrow", "probImFat", "probMuscle")
+     print '{0:>10.3f}, {1:>10.3f}, {2:>10.3f}, {3:>10.3f},{4:>10.3f},{5:>12.3f},{6:>12.3f}'.format(*volume)
+
+
+
+def clean( imageFile ):
+
+     delete_files = glob.glob('*'+ imageFile + '*')
+
+     for ii in delete_files:
+          os.remove( ii )
+
+
+
+def extract_label( image, labelIndex, labelName ):
+
+     iwUtilities.iw_subprocess( ["fslmaths", image, "-thr", str(labelIndex), "-uthr", str(labelIndex), labelName])
+
+def check_file(filename):
+
+     # Create convex hull of bone cortex
+     if not os.path.exists(filename):
+          sys.exit("check_file(): " + filename + "does not exist.")
+          
+
+#
+# Main Function
+#
+
+if __name__ == "__main__":
+
+     ## Parsing Arguments
+     #
+     #
+
+     usage = "usage: %prog [options] arg1 arg2"
+
+     class MyParser(argparse.ArgumentParser):
+         def error(self, message):
+             sys.stderr.write('error: %s\n' % message)
+             self.print_help()
+             sys.exit(2)
+
+     parser = argparse.ArgumentParser(prog='mskSegmentThigh')
+
+     parser.add_argument("--image",         help="T2w thigh image file", default="t1w_36ms.nii.gz")
+     parser.add_argument("--mask",          help="Mask to segment thigh into subcutaneous fat, intramuscular fat, muscle, bone cortex, and bone marrow", 
+                         default="mask.t1w_36ms.nii.gz")
+
+     parser.add_argument("--indir",           help="Input directory",  default = os.getcwd() )
+     parser.add_argument("--outdir",          help="Output directory", default = '../01-segment' )
+     parser.add_argument("--outprefix",       help="Output prefix",    default = "st_" )
+
+     parser.add_argument("-d","--display",  help="Display results in Freeview", action="store_true", default=False )
+     parser.add_argument("-v","--verbose",  help="Verbose flag",      action="store_true", default=False )
+     parser.add_argument("--debug",         help="Debug flag",      action="store_true", default=False )
+
+     parser.add_argument("--clean",         help="Clean directory by deleting intermediate files",      action="store_true", default=False )
+     parser.add_argument("--stats",         help="Measure Label volumes in cm^3",      action="store_true", default=False )
+     parser.add_argument("--stage",         help="Stages to process.",      action="store_true", default=True )
+
+     parser.add_argument("--qi",            help="QA inputs",      action="store_true", default=False )
+     parser.add_argument("--qo",            help="QA outputs",      action="store_true", default=False )
+     parser.add_argument("-r", "--run",     help="Run processing pipeline",      action="store_true", default=False )
+
+     inArgs = parser.parse_args()
+
+
+     input_files = [[ inArgs.image, ":colormap=grayscale" ],
+                    [ inArgs.mask,  ":colormap=jet:opacity=0.5"]];
+
+     processName   = ".mskSegmentThigh."
+     baseName      = ".mskSegmentThigh."+inArgs.image;
+
+
+
+     labelFileName = "labels."+inArgs.image
+
+     labelColorFreeSurferLUT  =  os.getenv("MSK_SCRIPTS") + "/" "mskSegmentThigh.FreesurferColorLUT.txt" 
+
+     intermediate_files = [["1"+processName+"SegmentationPosteriors1.nii.gz",    ":colormap=jet:opacity=0.3"],  # Atropos Skeletal Muscle
+                           ["ch.muscle"+baseName,                               ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["ch.cortex"+baseName,                               ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["cortex"+baseName,                                  ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["marrow"+baseName,                                  ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["subfat"+baseName,                                  ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["imfat"+baseName,                                   ":colormap=jet:opacity=0.3"],  # Convex Hull Muscle
+                           ["muscle"+baseName,                                  ":colormap=jet:opacity=0.3"]]  # Convex Hull Muscle
+
+     
+     output_files = [  [ "n4."          + inArgs.image,  ":visible=1:colormap=grayscale" ],
+                       [ "pmap.imfat."  + inArgs.image,  ":visible=0:colormap=heat:heatscale=0,1:opacity=0.6" ],
+                       [ "pmap.muscle." + inArgs.image,  ":visible=0:colormap=heat:heatscale=0,1:opacity=0.6" ],
+                       [ "labels."      + inArgs.image,  ":visible=1:colormap=lut:lut="+ labelColorFreeSurferLUT+":opacity=0.6" ]]
+
+     labels = [[ "subfat", 1], [ "muscle", 1], [ "muscle", 1], [ "muscle", 1], [ "muscle", 1],]
+
+
+     # Change director to input directory
+
+     in_directory = os.path.abspath( inArgs.indir)
+     os.chdir( in_directory )
+
+     out_directory = os.path.abspath( os.path.join( inArgs.indir,inArgs.outdir))
+     outFull       = os.path.join(out_directory, inArgs.outprefix)
+
+     if not os.path.exists(out_directory):
+          os.makedirs(out_directory)
+          
+     in_file_full_path   =  os.path.join( in_directory, inArgs.image) 
+     mask_file_full_path =  os.path.join( in_directory, inArgs.mask) 
+
+
+     if ( os.path.isfile( in_file_full_path ) and 
+          not os.path.isfile( os.path.join( out_directory, inArgs.image))):
+          shutil.copy2(in_file_full_path,   out_directory )
+
+     if ( os.path.isfile( mask_file_full_path  ) and 
+          not os.path.isfile( os.path.join( out_directory, inArgs.mask))):
+          shutil.copy2(mask_file_full_path, out_directory )
+
+
+     if inArgs.debug:
+          print
+          print "inArgs.display    = " +  str(inArgs.display)
+          print "inArgs.debug      = " +  str(inArgs.debug)
+          print "inArgs.verbose    = " +  str(inArgs.verbose)
+
+     # Quality Assurance input
+     #
+         
+     if  inArgs.qi:
+
+         iwQa.qa_input_files( input_files, True )
+         iwQa.freeview( input_files ) 
+
+
+     # Clean
+     #
+         
+     if  inArgs.clean:
+          clean( processName ) 
+     
+     # Run    
+     # 
+
+     stageFlag  = [False, False, False,  False, False]
+
+     if  inArgs.run:
+
+         if  iwQa.qa_input_files( input_files, False):
+
+              # Change director to input directory
+              os.chdir( out_directory )
+
+              #
+              # Stage 1: Does a crude segmentation of fat and muscle.  Goal is to identify voxels that do not belong to 
+              # either group.
+              #
+
+              if stageFlag[0] or  not os.path.isfile( "ch.muscle"+baseName  ):
+
+                   print "#### Initial Segmentation 2 classification fat/muscle"
+
+                   if not os.path.isfile( "n4."+inArgs.image  ):
+
+                        iwUtilities.iw_subprocess( ["N4BiasFieldCorrection","-d","3", "-i", inArgs.image, "-x", 
+                                                    inArgs.mask, "-r", "-s", "-o","n4."+inArgs.image], inArgs.verbose)
+                             
+
+
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "01a"+baseName, "m", "n4."+inArgs.image, inArgs.mask], inArgs.verbose)
+                   iwUtilities.iw_subprocess( ["ThresholdImage","3", "01a"+baseName, "01b"+baseName, "Otsu", "2"], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "01b"+baseName,    "-add", "1", "-mul", inArgs.mask, "01c"+baseName], inArgs.verbose)
+
+                   extract_label("01c"+baseName, 1, "mask.other"+baseName)
+                   extract_label("01c"+baseName, 1, "mask.other.original"+baseName)
+
+                   extract_label("01c"+baseName, 2, "mask.muscle"+baseName)
+                   extract_label("01c"+baseName, 2, "mask.muscle.original"+baseName)
+
+                   extract_label("01c"+baseName, 3, "mask.fat"+baseName)
+                   extract_label("01c"+baseName, 3, "mask.fat.original"+baseName)
+
+                   print "#### Perform opening operation on muscle and fat"
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "mask.muscle"+baseName, "-kernel", "2D", "-ero", "-dilM",
+                                               "mask.muscle"+baseName], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "mask.fat"+baseName, "-kernel", "2D", "-ero", "-dilM",
+                                               "mask.fat"+baseName], inArgs.verbose)
+                   
+
+                   print "#### Find convex hull of fat"
+
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "mask.subfat"+baseName, "GetLargestComponent", "mask.fat"+baseName ], inArgs.verbose)
+
+                   check_file("mask.subfat"+baseName)
+                   iwUtilities.iw_subprocess( ["matlab", "-nodisplay", "-noFigureWindows", "-nosplash", "-r", 
+                                               "msk_convex_hull('mask.subfat"+baseName+"',[8, 100],'mask.subfat"+baseName+"'); exit"], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "ch.mask.subfat"+baseName, "-kernel", "2D", "-ero",
+                                               "ch.mask.subfat"+baseName], inArgs.verbose)
+
+
+                   print "#### Grab largest muscle component"
+                   
+                   # Opening operation 
+
+#                   iwUtilities.iw_subprocess( ["fslmaths", "mask.muscle"+baseName, "-kernel", "2D", "-ero", "-dilM",
+#                                               "01c1.muscle"+baseName], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "ch.mask.subfat"+baseName, "-mul", "mask.muscle"+baseName,
+                                               "01c.muscle"+baseName], inArgs.verbose)
+
+                   # This needs to be replaced by keep components of a certain size
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "01d.muscle"+baseName, "GetLargestComponent",    "01c.muscle"+baseName ], inArgs.verbose)
+
+                                      
+                   print "#### Find the convex hull of the skeletal muscle"
+
+                   if not os.path.isfile( "ch.muscle"+baseName  ):
+                        iwUtilities.iw_subprocess( ["matlab", "-nodisplay", "-noFigureWindows", "-nosplash", "-r", 
+                                                    "msk_convex_hull('01d.muscle"+baseName+"',[8, 100],'muscle"+baseName+"'); exit"], inArgs.verbose)
+
+                   # Calculate bone cortex
+                   iwUtilities.iw_subprocess( ["fslmaths", "mask.muscle"+baseName, "-add", "mask.other"+baseName, "-binv", "-mul",
+                                               "ac.mask.subfat"+baseName, "-mul", "mask.subfat"+baseName, "-binv", "other.subfat"+baseName], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "glc.other.subfat"+baseName, "GetLargestComponent",
+                                               "other.subfat"+baseName ], inArgs.verbose)
+
+                   check_file("other.subfat"+baseName)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "glc.other.subfat"+baseName, "-binv", "-mul", "other.subfat"+baseName, 
+                                               "other.subfat"+baseName], inArgs.verbose)
+                   
+                   iwUtilities.iw_subprocess( ["fslmaths", "ch.muscle"+baseName, "-binv", "-mul",
+                                               "other.subfat"+baseName, "other.subfat"+baseName], inArgs.verbose)
+
+
+              if stageFlag[1] or not os.path.isfile( "ch.cortex"+baseName  ):
+
+                   check_file("mask.other"+baseName)
+                   check_file("ch.muscle"+baseName)
+
+                   print "#### Find convex hull of bone cortex"
+                   iwUtilities.iw_subprocess( ["fslmaths", "mask.other"+baseName,   "-mul", "ch.muscle"+baseName,  "02a.other"+baseName], inArgs.verbose)
+
+                   # Here is a weak link in the processing we assume that the thi
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "02b.other"+baseName, "GetLargestComponent",      "02a.other"+baseName ], inArgs.verbose)
+
+                   # Closing operation 
+                   iwUtilities.iw_subprocess( ["fslmaths", "02b.other"+baseName, "-kernel", "2D", "-dilM", "-ero", 
+                                               "02c.other"+baseName], inArgs.verbose)
+
+                   # Create convex hull of bone cortex
+                   check_file("02c.other"+baseName)
+
+                   if not os.path.isfile( "ch.cortex"+baseName  ):
+                        iwUtilities.iw_subprocess( ["matlab", "-nodisplay", "-noFigureWindows", "-nosplash", "-r", 
+                                                    "msk_convex_hull('02c.other"+baseName+"',[8, 100],'cortex"+baseName+"'); exit"], inArgs.verbose)
+
+
+              if stageFlag[2] or not os.path.isfile( "cortex"+baseName  ):
+                   
+                   print "#### Calculate Bone Marrow"
+
+                   check_file("ch.cortex"+baseName)
+                   check_file("mask.fat"+baseName)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "ch.cortex"+baseName, "-mul", "mask.fat"+baseName,  "03a.marrow"+baseName], inArgs.verbose)
+                   iwUtilities.iw_subprocess( ["ImageMath","3", "03b.marrow"+baseName, "GetLargestComponent",  "03a.marrow"+baseName ], inArgs.verbose)
+
+                   # Create convex hull of bone marrow
+
+                   check_file("03b.marrow"+baseName)
+                   iwUtilities.iw_subprocess( ["matlab", "-nodisplay", "-noFigureWindows", "-nosplash", "-r", 
+                                               "msk_convex_hull('03b.marrow"+baseName+"',[8, 100],'marrow"+baseName+"'); exit"], inArgs.verbose)
+
+                   shutil.copy("ch.marrow"+baseName, "marrow"+baseName )
+
+                   # Calculate bone cortex
+                   check_file("marrow"+baseName)
+                   iwUtilities.iw_subprocess( ["fslmaths", "marrow"+baseName, "-binv", "-mul", "ch.cortex"+baseName,  "cortex"+baseName], inArgs.verbose)
+
+                   # Calculate bone cortex
+                   check_file("cortex"+baseName)
+                   iwUtilities.iw_subprocess( ["fslmaths", "marrow"+baseName, "-add", "cortex"+baseName, 
+                                               "-binv", "-mul", "mask.other"+baseName,  "mask.other"+baseName], inArgs.verbose)
+
+
+              if stageFlag[3] or    not os.path.isfile( "pmap.imfat."+inArgs.image  ):
+              
+                   # Find Skeletal Muscle 
+                   
+                   check_file("ch.cortex"+baseName)
+                   iwUtilities.iw_subprocess(["fslmaths", "ch.cortex"+baseName, 
+                                              "-binv", "-mul", "mask.other"+baseName, "mask.other"+baseName])  # Multiply by bone cortex mask
+
+                   iwUtilities.iw_subprocess(["fslmaths", "cortex"+baseName, "-add", "marrow"+baseName, 
+                                              "-binv", "-mul", "ch.muscle"+baseName, "muscle"+baseName])  # Multiply by other mask
+
+
+                   iwUtilities.iw_subprocess(["fslcpgeom", inArgs.image, "muscle"+baseName])  # Encountered errors that muscle mask and input image were not in the
+                                                                                              # same physical space. This is impossible since the muscle mask was 
+                                                                                              # derived from the input image
+                   check_file("other.subfat"+baseName)
+                   iwUtilities.iw_subprocess( ["fslmaths", "ch.muscle"+baseName, "-binv",  
+                                               "-mul", inArgs.mask,  "subfat"+baseName], inArgs.verbose)
+
+                   iwUtilities.iw_subprocess( ["fslmaths", "other.subfat"+baseName, "-binv",  
+                                               "-mul", "subfat"+baseName,  "subfat"+baseName], inArgs.verbose)
+
+                   check_file("subfat"+baseName)
+
+                   # Final segmentation Intramuscular Fat and Skeletal Muscle
+
+                   check_file("muscle"+baseName)
+
+                   iwUtilities.iw_subprocess( ["antsAtroposN4.sh","-d","3", "-c", "2", "-a", inArgs.image, "-m", "4", "-n", "4", "-k", "-u", 
+                                               "-x", "muscle"+baseName, 
+                                               "-o", "./04a.mskSegmentThigh." ], inArgs.verbose ) 
+
+                   extract_label("04a.mskSegmentThigh.Segmentation.nii.gz", 1, "muscle"+baseName)
+                   extract_label("04a.mskSegmentThigh.Segmentation.nii.gz", 2, "imfat"+baseName)
+
+
+                   check_file("04a.mskSegmentThigh.SegmentationPosteriors1.nii.gz")
+                   check_file("04a.mskSegmentThigh.SegmentationPosteriors2.nii.gz")
+
+                   shutil.copy("04a.mskSegmentThigh.SegmentationPosteriors1.nii.gz",    "pmap.muscle."+inArgs.image )
+                   shutil.copy("04a.mskSegmentThigh.SegmentationPosteriors2.nii.gz",    "pmap.imfat."+inArgs.image )
+
+
+              if stageFlag[4] or  not os.path.isfile( "labels."+inArgs.image  ):
+
+                   print "Stage 4: Create final labels"
+
+                   # Create Final Labels
+
+                   check_file("subfat"+baseName)
+                   check_file("imfat"+baseName)
+                   check_file("muscle"+baseName)
+                   check_file("cortex"+baseName)
+                   check_file("marrow"+baseName)
+                   check_file("mask.other"+baseName)
+                   check_file("other.subfat"+baseName)
+
+                   shutil.copy(inArgs.image, "labels." + inArgs.image )
+                   
+                   iwUtilities.iw_subprocess(["fslmaths", "labels."+inArgs.image,     "-bin", "-mul",  "0",         "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "subfat"+baseName,          "-bin", "-mul",  "1", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "imfat"+baseName,           "-bin", "-mul",  "2", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "muscle"+baseName,          "-bin", "-mul",  "3", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "cortex"+baseName,          "-bin", "-mul",  "4", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "marrow"+baseName,          "-bin", "-mul",  "5", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "mask.other"+baseName,      "-bin", "-mul",  "6", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+                   iwUtilities.iw_subprocess(["fslmaths", "other.subfat"+baseName,    "-bin", "-mul",  "7", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+
+#                  iwUtilities.iw_subprocess( ["fslmaths",  "mask.muscle" + baseName,
+#                                               "-add", "mask.fat"+baseName, "-add", "ch.cortex"+baseName, "-binv", "-mul", inArgs.mask,  "mask.undefined"+baseName], inArgs.verbose)
+
+#                   iwUtilities.iw_subprocess(["fslmaths", "mask.undefined"+baseName,  "-bin", "-mul",  "6", "-add", "labels."+inArgs.image, "labels."+inArgs.image])
+
+#                   iwUtilities.iw_subprocess( ["fslmaths",  "mask.undefined" + baseName, "-binv", "-mul", "labels."+inArgs.image,       "labels."+inArgs.image])   
+#                   iwUtilities.iw_subprocess( ["fslmaths",  "mask.undefined" + baseName, "-binv", "-mul", "pmap.muscle."+inArgs.image,  "pmap.muscle."+inArgs.image])
+#                   iwUtilities.iw_subprocess( ["fslmaths",  "mask.undefined" + baseName, "-binv", "-mul", "pmap.imfat."+inArgs.image,   "pmap.imfat."+inArgs.image]) 
+
+#                   extract_label("labels."+inArgs.image, 1, "subfat"+baseName)
+#                   extract_label("labels."+inArgs.image, 2, "imfat"+baseName)
+#                   extract_label("labels."+inArgs.image, 3, "muscle"+baseName)
+#                   extract_label("labels."+inArgs.image, 4, "cortex"+baseName)
+#                   extract_label("labels."+inArgs.image, 5, "marrow"+baseName)
+
+
+
+              if not inArgs.debug or inArgs.clean:
+                   clean( ".mskSegmentThigh." ) 
+             
+         else:
+              print
+              print "Unable to run mskSegmentThigh.py - failed input QA."
+              iwQa.qa_exist( input_files, True )
+              print
+
+
+     #   
+     #
+
+     if  inArgs.stats:
+          stats( labelFileName, "pmap.imfat."+inArgs.image, "pmap.muscle."+inArgs.image )
+
+     # Quality Assurance output
+     #
+
+     if  inArgs.qo:
+
+          if inArgs.debug:
+               iwQa.freeview( intermediate_files +  output_files, True ) 
+          else:
+               iwQa.freeview( output_files, True ) 
