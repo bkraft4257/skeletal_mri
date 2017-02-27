@@ -1,6 +1,6 @@
 #!/usr/bin/env bash 
 
-source ${IMAGEWAKE2_PATH}/scripts/dcm_functions.sh
+source ${TIC_TOOLS_PATH}/other/unix/dcm_functions.sh
 basename=dcmConvert_pepper.cfg
 
 dcm_group dcmConvertAll.cfg > 01.${basename}
