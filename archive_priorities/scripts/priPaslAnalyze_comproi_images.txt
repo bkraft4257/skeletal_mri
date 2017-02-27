@@ -1,0 +1,6 @@
+Value, fileName
+m0,  syn.m0_To_mask.muscle.nii.gz
+pwi, syn.pwi_To_mask.muscle.nii.gz
+smbf, syn.rsmbf_To_mask.muscle.nii.gz
+
+

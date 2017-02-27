@@ -8,8 +8,8 @@
 #
 
 export PRIORITIES_PYTHONPATH=${PRIORITIES_PATH}/priorities/
-export PRIORITIES_ARCHIVE_PATH=${PRIORITIES_PATH}/archive/
 
+export PRIORITIES_ARCHIVE_PATH=${PRIORITIES_PATH}/archive_priorities/
 export PRIORITIES_MATLAB=${PRIORITIES_ARCHIVE_PATH}/matlab/
 export PRIORITIES_SCRIPTS=${PRIORITIES_ARCHIVE_PATH}/scripts/
 export PRIORITIES_PROTOCOLS=${PRIORITIES_ARCHIVE_PATH}/protocols/
@@ -17,7 +17,7 @@ export PRIORITIES_PROTOCOLS=${PRIORITIES_ARCHIVE_PATH}/protocols/
 export PRIORITIES_MRI_SUBJECT_DATA=/cenc/other/msk/priorities/mriData/
 export PRIORITIES_MRI_DATA=/cenc/other/msk/priorities/mriData/
 
-export PATH=${PRIORITIES_PATH}:${PRIORITIES_SCRIPTS}:${PATH}	
+export PATH=${PRIORITIES_PATH}:${PRIORITIES_PATH}/bin:${PATH}	
 
 source ${PRIORITIES_PATH}/other/priorities_aliases.sh
 

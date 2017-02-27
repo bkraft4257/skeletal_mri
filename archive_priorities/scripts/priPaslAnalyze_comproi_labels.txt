@@ -1,0 +1,10 @@
+Value, Description
+1+2+3+4+5+6, muscle
+ 1,  Gastrocnemius_medial
+ 2,  Gastrocnemius_lateral
+ 3,  Soleus
+ 4,  Fibularis_longus
+ 5,  Tibialis_anterior
+ 6,  Tibialis_posterior
+
+

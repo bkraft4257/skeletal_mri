@@ -1,0 +1,5 @@
+Value, Description
+1, adiposeTissue
+2, skeletalMuscle
+3, boneCortex
+4, boneMarrow

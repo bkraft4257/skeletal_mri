@@ -1,0 +1,86 @@
+#!/bin/bash
+
+inSubjectDir=${1-$PWD}
+inSubjectDir=$(readlink -f $inSubjectDir)
+
+inReorientDir=${inSubjectDir}/reorient/
+paslDir=${inSubjectDir}/pasl/
+
+muscleMaskFileName=${inSubjectDir}/label/muscle/results/mask.muscle.nii.gz
+muscleLabelsFileName=${inSubjectDir}/label/clinville/results/*_reorient_t2w_seg.nii.gz
+
+
+echo "IW>>> >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+echo $FUNCNAME
+echo
+echo "date, " $(date)
+echo "user, " $(whoami)
+echo "pwd,  "$(pwd)
+echo
+echo "inSubjectDir, "         $inSubjectDir
+echo "inReorientDir, "        $inReorientDir
+echo "muscleMaskFileName, "   $muscleMaskFileName
+echo
+echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< <<<IW "
+echo
+
+#
+# Copy images to the correct time point in the pasl directory.
+#
+
+for ii in 0 1 2 3; do
+
+#   iiLabelsDir="${inSubjectDir}/pasl/${ii}/labels"
+#   [ -d $iiLabelsDir ] || mkdir -p ${iiLabelsDir}
+#   iiLabelsDir=$(readlink -f ${iiLabelsDir})
+
+#    cd ${iiLabelsDir}; 
+#    echo
+#    pwd
+#    ls 
+#    echo
+
+#    cp "../../label/clinville/results/[123]_reorient_t2w{,_seg}.nii.gz" .; 
+#    priPaslAnalyze_erodeMask.sh . "[123]_reorient_t2w_seg.nii.gz"
+
+
+   iiOutDir="${paslDir}/${ii}/input"
+   [ -d $iiOutDir ] || mkdir -p ${iiOutDir}
+   iiOutDir=$(readlink -f ${iiOutDir})
+
+   iiResultsDir="${inSubjectDir}/pasl/${ii}/results"
+   [ -d $iiResultsDir ] || mkdir -p ${iiResultsDir}
+   iiResultsDir=$(readlink -f ${iiResultsDir})
+
+   ln -f ${inReorientDir}/t2w.nii.gz  ${iiResultsDir}
+   ln -f ${muscleLabelsFileName}      ${iiResultsDir}
+
+   echo "======================================="
+   echo "Time Point, " ${ii} 
+   echo "iiOutDir, " ${iiOutDir}
+
+#  The PWI image when it is stored as a DICOM image has a range of 0-4095. 
+#  Therefore it is necessary to subtract 2048 from each image. I also mask the image around the 
+
+#   if [ -f ${inReorientDir}/pasl_pwi_${ii}.nii.gz ]; then
+       fslmaths ${inReorientDir}/pasl_pwi_${ii}.nii.gz -sub 2048 ${iiOutDir}/pwi.nii.gz
+#   fi
+
+#   if [ -f ${inReorientDir}/pasl_raw_${ii}.nii.gz ]; then
+      fslroi ${inReorientDir}/pasl_raw_${ii}.nii.gz  ${iiOutDir}/m0.nii.gz   0 1   
+#   fi
+
+#   if [ -f ${muscleMaskFileName} ]; then
+      cp -f ${muscleMaskFileName} ${iiOutDir}
+#   fi
+
+   cd ${iiOutDir}
+
+   pwd
+
+   ls
+
+   echo 
+
+done
+

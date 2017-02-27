@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-### Infinite bash shell environment
+### Skeletal MRI bash shell environment
+#
+#   Priorities bash shell environment was the first MSK set of tools. It
+#   has been loaded seperately because eventually PRIORITIES is going to be 
+#   over.  
 #
 #
-
-#
-# export RADCORE_PATH=/gandg/infinite3/infinite/icGit/release/ic/studies/infinite
+# export MSK_MRI_PATH=${TIC_PATH}/studies/msk/
 #
 
-export RADCORE_PYTHONPATH=${RADCORE_PATH}/radcore/
-export RADCORE_ARCHIVE_PATH=${RADCORE_PATH}/archive/
+export MSK_PYTHONPATH=${MSK_PATH}/radcore/
+export MSK_ARCHIVE_PATH=${MSK_PATH}/archive/
 
-export RADCORE_MATLAB=${RADCORE_ARCHIVE_PATH}/matlab/
-export RADCORE_SCRIPTS=${RADCORE_ARCHIVE_PATH}/scripts/
-export RADCORE_PROTOCOLS=${RADCORE_ARCHIVE_PATH}/protocols/
+export MSK_MATLAB=${MSK_ARCHIVE_PATH}/matlab/
+export MSK_SCRIPTS=${MSK_ARCHIVE_PATH}/scripts/
+export MSK_PROTOCOLS=${MSK_ARCHIVE_PATH}/protocols/
 
-export RADCORE_MRI_SUBJECT_DATA=/RadCCORE_MRI/subjects/
-export RADCORE_MRI_DATA=/RadCCORE_MRI/subjects/
+export MSK_MRI_DATA=${MSK_DISK}/studies/pepper/skeletal_mri/
 
-export PATH=${RADCORE_PATH}:${RADCORE_SCRIPTS}:${PATH}	
+export PATH=${MSK_PATH}:${MSK_SCRIPTS}:${MSK_PATH}/bin:${PATH}	
 
-source ${RADCORE_PATH}/other/radcore_aliases.sh
+source ${MSK_PATH}/other/msk_aliases.sh
 
-export PYTHONPATH=${RADCORE_PATH}:$PYTHONPATH
+export PYTHONPATH=${MSK_PATH}/:$PYTHONPATH
 

@@ -1,0 +1,1 @@
+msk_label_thigh

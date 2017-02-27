@@ -1,0 +1,11 @@
+#$Id: FreeSurferColorLUT.txt,v 1.70.2.7 2012/08/27 17:20:08 nicks Exp $
+
+#No. Label Name:                            R   G   B   A
+
+0   Unknown                                 0   0   0   0
+10   Subcutaneous_Fat                       0   0  255  0
+21   Intramuscular_Fat                     245 245 245  0
+22   Intramuscular_Muscle                    0 245 245  0
+30   Bone_Cortex                           205 62  78   0
+40   Bone_Marror                            20 18  134  0
+
