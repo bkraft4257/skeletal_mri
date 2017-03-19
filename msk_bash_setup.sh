@@ -18,7 +18,7 @@ export MSK_PROTOCOLS=${MSK_ARCHIVE_PATH}/protocols/
 
 export MSK_MRI_DATA=${MSK_DISK}/studies/pepper/skeletal_mri/
 
-export PATH=${MSK_PATH}:${MSK_SCRIPTS}:${MSK_PATH}/bin:${PATH}	
+export PATH=${MSK_PATH}:${MSK_PATH}/bin:${MSK_SCRIPTS}:${PATH}	
 
 source ${MSK_PATH}/other/msk_aliases.sh
 
